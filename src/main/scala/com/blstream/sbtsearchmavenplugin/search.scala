@@ -9,22 +9,39 @@ case class Artifact(g: String, a: String, latestVersion: String)
 trait Search {
   self: MavenOrgSearcher with QueryCleaner with ResultsParser with ArtifactsPrinter =>
 
-  def search(args: Seq[String], log: Logger): Unit = {
-    val results = for {
+  def getResultsFor(args: Seq[String], log: Logger): Either[Error, (String, List[Artifact])] = {
+    val result = for {
       queryString <- args.headOption.toRight[Error]("usage: searchMaven queryString").right
       cleanedQuery <- cleanQuery(queryString).right
       jsonResults <- query(cleanedQuery).right
       artifacts <- parseResults(jsonResults).right
     } yield {
+      Right((cleanedQuery, artifacts))
+    }
+    result match {
+      case Right(tuple) => tuple
+      case _ => Left("no results")
+    }
+  }
+
+  def search(args: Seq[String], log: Logger): Unit = {
+    val results: Either[Error, String] = getResultsFor(args, log) match {
+      case Right((cleanedQuery: String, artifacts: List[Artifact])) => Right(printArtifacts(cleanedQuery)(artifacts))
+      case _ => Left("")
+    }
+    /*
+    val results = for {
+      (cleanedQuery, artifacts) <- getResultsFor(args, log).right
+    } yield {
       printArtifacts(cleanedQuery)(artifacts)
     }
+    */
 
     results.fold(
       log.warn(_),
       log.info(_)
     )
   }
-
 }
 
 trait ArtifactsPrinter {
@@ -34,14 +51,15 @@ trait ArtifactsPrinter {
       val separator = "%"
       val quotesLength = 2
       val max = countMaxColumnsSizes(artifacts)
-      artifacts.map { a =>
-        val col1Length = max._1 + quotesLength
-        val col2Length = max._2 + quotesLength
-        val group = s""""${a.g}""""
-        val artifact = s""""${a.a}""""
-        val version = s""""${a.latestVersion}""""
+      artifacts.zipWithIndex.map {
+        case (a, index) =>
+          val col1Length = max._1 + quotesLength
+          val col2Length = max._2 + quotesLength
+          val group = s""""${a.g}""""
+          val artifact = s""""${a.a}""""
+          val version = s""""${a.latestVersion}""""
 
-        s"%-${col1Length}s %s %-${col2Length}s %s %s".format(group, separator, artifact, separator, version).trim
+          s"[%s] %-${col1Length}s %s %-${col2Length}s %s %s".format(index, group, separator, artifact, separator, version).trim
       }.mkString(s"Results for $query:\n", "\n", "")
     }
 
