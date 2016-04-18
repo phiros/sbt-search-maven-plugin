@@ -6,7 +6,11 @@ trait ArtifactFileHelper {
   self: DependencyReaderWriter =>
 
   def getFileContents: String = {
-    val string = scala.io.Source.fromFile(artifactFile).getLines.mkString("\n")
+    val string = try {
+      scala.io.Source.fromFile(artifactFile).getLines.mkString("\n")
+    } catch {
+      case _: Throwable => ""
+    }
     string
   }
 
@@ -20,6 +24,12 @@ trait ArtifactFileHelper {
     writer.close()
   }
 
-  def before = artifactFile.delete()
-  def after = artifactFile.delete()
+  def before = {
+    try {
+      artifactFile.delete()
+    } catch {
+      case (_: Throwable) =>
+    }
+  }
+  def after = before
 }

@@ -9,7 +9,7 @@ case class Artifact(g: String, a: String, latestVersion: String)
 trait Search {
   self: MavenOrgSearcher with QueryCleaner with ResultsParser with ArtifactsPrinter =>
 
-  def getResultsFor(args: Seq[String], log: Logger): Either[Error, (String, List[Artifact])] = {
+  def getResultsFor(args: Seq[String]): Either[Error, (String, List[Artifact])] = {
     val result = for {
       queryString <- args.headOption.toRight[Error]("usage: searchMaven queryString").right
       cleanedQuery <- cleanQuery(queryString).right
@@ -25,17 +25,10 @@ trait Search {
   }
 
   def search(args: Seq[String], log: Logger): Unit = {
-    val results: Either[Error, String] = getResultsFor(args, log) match {
+    val results: Either[Error, String] = getResultsFor(args) match {
       case Right((cleanedQuery: String, artifacts: List[Artifact])) => Right(printArtifacts(cleanedQuery)(artifacts))
       case _ => Left("")
     }
-    /*
-    val results = for {
-      (cleanedQuery, artifacts) <- getResultsFor(args, log).right
-    } yield {
-      printArtifacts(cleanedQuery)(artifacts)
-    }
-    */
 
     results.fold(
       log.warn(_),

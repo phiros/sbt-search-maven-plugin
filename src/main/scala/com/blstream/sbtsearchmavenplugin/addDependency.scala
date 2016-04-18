@@ -8,23 +8,30 @@ trait AddDependency {
   self: Search with DependencyReaderWriter with ArtifactString =>
 
   def add(args: Seq[String], log: Logger): Unit = {
-    val results: Either[Error, Artifact] = getResultsFor(args, log) match {
-      case Right((cleanedQuery, artifacts)) => {
-        SelectDependency(Some(SimpleReader readLine _), artifacts) match {
-          case Some(artifact: Artifact) => Right(artifact)
-          case _ => Left("")
-        }
-      }
-      case _ => Left("Couldn't find any dependency")
-    }
+    val artifact = getAndChooseArtifacts(args)
+    artifact.right.map(writeArtifactsFile(_))
 
-    results.right.map(writeArtifactsFile(_))
-
-    results.fold(
+    artifact.fold(
       log.warn(_),
       log.info(_)
     )
   }
+
+  def getAndChooseArtifacts(args: Seq[String]): Either[Error, Artifact] = {
+    getResultsFor(args) match {
+      case Right((cleanedQuery, artifacts)) => chooseArtifact(artifacts)
+      case _ => Left("Couldn't find any dependency")
+    }
+  }
+
+  def chooseArtifact(artifacts: Seq[Artifact]): Either[Error, Artifact] = {
+    SelectDependency(inputFunction, artifacts) match {
+      case Some(artifact: Artifact) => Right(artifact)
+      case _ => Left("")
+    }
+  }
+
+  def inputFunction: Option[String => Option[String]] = Some(SimpleReader readLine _)
 }
 
 trait ArtifactString {

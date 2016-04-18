@@ -1,21 +1,44 @@
 package com.blstream.sbtsearchmavenplugin
 
 import org.specs2.mutable.Specification
-import org.specs2.specification.{AfterEach, BeforeEach}
+import org.specs2.specification.{ AfterEach, BeforeEach }
 
 class AddDependencyTest extends Specification with BeforeEach with AfterEach with AddDependencyTraits {
   sequential
 
-  "add" should {
-    "properly write a single artifact to an non existing artifact file" >> {
-      val artifact = artifacts(0)
-      writeArtifactsFile(artifact)
-      val text = getFileContents
-      val expectedResult =
-        s"""|libraryDependencies += "org.scalaz" % "z" % "1"""".stripMargin
+  var chooseSequence = Seq(1, 2, 1)
 
-      text must beEqualTo(expectedResult)
+  val artifactsList = List(Artifact("org.scalaz", "z", "1"), Artifact("foo", "bar", "baz"))
+
+  override def inputFunction: Option[String => Option[String]] = {
+    val chooseFn = choose(chooseSequence.head)
+    chooseSequence = chooseSequence.tail
+    chooseFn
+  }
+
+  "chooseArtifact" should {
+    "allow a user to pick the first artifact out of a list of artifacts" >> {
+      val expectedArtifact = artifactsList(chooseSequence.head - 1)
+      val choosenArtifact = chooseArtifact(artifactsList)
+
+      choosenArtifact must beEqualTo(Right(expectedArtifact))
     }
+  }
+
+  "chooseArtifact" should {
+    "allow a user to pick the second artifact out of a list of artifacts" >> {
+      val expectedArtifact = artifactsList(chooseSequence.head - 1)
+      val choosenArtifact = chooseArtifact(artifactsList)
+
+      choosenArtifact must beEqualTo(Right(expectedArtifact))
+    }
+  }
+
+  def choose(index: Integer): Option[String => Option[String]] = {
+    def chooseIndex(str: String): Option[String] = {
+      Some(s"""$index""")
+    }
+    Some(chooseIndex)
   }
 }
 
@@ -30,6 +53,4 @@ trait AddDependencyTraits
   with ArtifactString
   with sbt.PathExtra
   with ArtifactFileHelper
-
-
 
